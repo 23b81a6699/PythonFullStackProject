@@ -84,7 +84,7 @@ CREATE TABLE products (
 );
 
 ```
-3.  **Get your Credentials :
+#  **Get your Credentials :
 ### 4. Configure Environment Variables  
 
 1. Create a `.env` file in the project root
@@ -98,7 +98,7 @@ SUPABASE_KEY=your_anon_key_here
 SUPABASE_URL="https://swelytillpyabxhjclse.supabase.co"
 SUPABASE_KEY="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN3ZWx5dGlsbHB5YWJ4aGpjbHNlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTgwODIyMzIsImV4cCI6MjA3MzY1ODIzMn0.IczsYYyr4J-60OYrfEeiuORqEqT4tHts17J-K6y94Qo"
 
-## 5. Run the Application
+### 5. Run the Application
 
 # Streamlit Frontend
 
@@ -162,6 +162,7 @@ Ideas for extending this project:
 5. Provide automatic order tracking and purchase analytics tools.
 
 Integrate user-customizable alert thresholds and notification schedules.
+
 ## Technology Stack
 - **Programming Language:** Python  
 - **Web Scraping:** Requests + BeautifulSoup (or Playwright for JS-rendered pages)  
