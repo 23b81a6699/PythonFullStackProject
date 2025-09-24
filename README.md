@@ -84,7 +84,7 @@ CREATE TABLE products (
 );
 
 ```
-3.  **Get your Credentials :
+#  **Get your Credentials :
 ### 4. Configure Environment Variables  
 
 1. Create a `.env` file in the project root
