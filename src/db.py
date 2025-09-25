@@ -1,4 +1,5 @@
-# db_manager.py
+# db.py
+
 import os
 from supabase import create_client
 from dotenv import load_dotenv
@@ -12,9 +13,8 @@ key = os.getenv("SUPABASE_KEY")
 supabase = create_client(url, key)
 
 # --------------------------
-#   Users Table Operations
+# Users Table Operations
 # --------------------------
-
 def create_user(first_name, last_name, email, mobile_no, password_hash):
     return supabase.table("users").insert({
         "first_name": first_name,
@@ -25,21 +25,19 @@ def create_user(first_name, last_name, email, mobile_no, password_hash):
         "created_at": datetime.now()
     }).execute()
 
-def get_users():
+def get_all_users():
     return supabase.table("users").select("*").order("created_at").execute()
 
-def update_user(uid, new_user : dict):
+def update_user(uid, new_user: dict):
     return supabase.table("users").update(new_user).eq("uid", uid).execute()
 
 def delete_user(uid):
     return supabase.table("users").delete().eq("uid", uid).execute()
 
-
-# ------------------------------------
-#   Products Table Operations
-# ------------------------------------
-
-def create_product(user_id, url, name, category, last_price, desired_price):
+# --------------------------
+# Products Table Operations
+# --------------------------
+def create_product(user_id, url, name=None, category=None, last_price=None, desired_price=None):
     return supabase.table("products_price").insert({
         "user_id": user_id,
         "url": url,
