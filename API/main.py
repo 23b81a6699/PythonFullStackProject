@@ -1,124 +1,61 @@
-# main.py
-# Frontend -> API -> logic -> db -> supabase(response)
-
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-import sys, os
+from src.logic import UserManager, ProductManager, check_and_update_all_products, track_product_by_name
 
-# Import UserManager & ProductManager
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.logic import UserManager, ProductManager
+app = FastAPI()
 
-# ------------------------------- App Setup -----------------------------------------
-app = FastAPI(title="E-commerce Product Price Tracker", version="1.0")
-
-# ----------------------------Allow frontend (Streamlit/React) to call the API --------------------------
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# ---------------------- Business Logic Instances ----------------------
-user_manager = UserManager()
-product_manager = ProductManager()
-
-# ------------------ Data Models ------------------------------------
-class UserCreate(BaseModel):
-    first_name: str
-    last_name: str
-    email: str
-    mobile_no: int
-    password_hash: str
-
-class UserUpdate(BaseModel):
-    first_name: str = None
-    last_name: str = None
-    email: str = None
-    mobile_no: int = None
-    password_hash: str = None
-
-class ProductCreate(BaseModel):
-    user_id: int
-    url: str
-    desired_price: float
-
-class ProductUpdate(BaseModel):
-    url: str = None
-    desired_price: float = None
-    name: str = None
-    category: str = None
-    last_price: float = None
-
-# ----------------------- Endpoints ---------------------------------
-@app.get("/")
-def home():
-    return {"message": "E-commerce Product Price Tracker is running!"}
-
-# ---------------------- Users CRUD ----------------------
-@app.get("/users")
-def get_users():
-    return user_manager.get_users()
-
-@app.post("/users")
-def create_user(user: UserCreate):
-    result = user_manager.add_user(
-        user.first_name, user.last_name, user.email, user.mobile_no, user.password_hash
+# ---------------- USERS ---------------- #
+@app.post("/users/")
+def create_user(user: dict):
+    res = UserManager.add_user(
+        user.get("first_name"), user.get("last_name"),
+        user.get("email"), user.get("mobile_no"),
+        user.get("password")
     )
-    if not result.get("Success"):
-        raise HTTPException(status_code=400, detail=result.get("Message"))
-    return result
+    if not res["Success"]:
+        raise HTTPException(status_code=400, detail=res["Message"])
+    return res
+
+@app.get("/users/")
+def list_users():
+    return UserManager.get_users()
 
 @app.put("/users/{uid}")
-def update_user(uid: int, user: UserUpdate):
-    updated_fields = {k: v for k, v in user.dict().items() if v is not None}
-    result = user_manager.update_user(uid, updated_fields)
-    if not result.get("Success"):
-        raise HTTPException(status_code=400, detail=result.get("Message"))
-    return result
+def update_user(uid: int, updates: dict):
+    return UserManager.update_user(uid, updates)
 
 @app.delete("/users/{uid}")
 def delete_user(uid: int):
-    result = user_manager.delete_user(uid)
-    if not result.get("Success"):
-        raise HTTPException(status_code=400, detail=result.get("Message"))
-    return result
+    return UserManager.delete_user(uid)
 
-# ---------------------- Products CRUD ----------------------
-@app.get("/products_price")
-def get_products():
-    return product_manager.get_products()
-
-@app.post("/products_price")
-def create_product(product: ProductCreate):
-    result = product_manager.add_product(
-        user_id=product.user_id,
-        url=product.url,
-        desired_price=product.desired_price
+# ---------------- PRODUCTS ---------------- #
+@app.post("/products/")
+def create_product(product: dict):
+    res = ProductManager.add_product(
+        product.get("user_id"), product.get("url"),
+        product.get("name"), product.get("category"),
+        product.get("desired_price")
     )
-    if not result.get("Success"):
-        raise HTTPException(status_code=400, detail=result.get("Message"))
-    return result
+    if not res["Success"]:
+        raise HTTPException(status_code=400, detail=res["Message"])
+    return res
 
-@app.put("/products_price/{pid}")
-def update_product(pid: int, product: ProductUpdate):
-    updated_fields = {k: v for k, v in product.dict().items() if v is not None}
-    result = product_manager.update_product(pid, updated_fields)
-    if not result.get("Success"):
-        raise HTTPException(status_code=400, detail=result.get("Message"))
-    return result
+@app.get("/products/")
+def list_products(user_id: int = None):
+    return ProductManager.get_products(user_id)
 
-@app.delete("/products_price/{pid}")
-def delete_product(pid: int):
-    result = product_manager.delete_product(pid)
-    if not result.get("Success"):
-        raise HTTPException(status_code=400, detail=result.get("Message"))
-    return result
+# ---------------- TRACKING ---------------- #
+@app.post("/track/")
+def track_all_products():
+    try:
+        tracked = check_and_update_all_products()
+        return tracked
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
-# ---------------------- Run App ---------------------------------
-if __name__ == "__main__":
-    import uvicorn
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+# ✅ Updated: use query parameter instead of path parameter
+@app.get("/track/")
+def track_by_name(name: str):
+    tracked = track_product_by_name(name)
+    if not tracked:
+        raise HTTPException(status_code=404, detail="Not Found")
+    return {"Products": tracked}

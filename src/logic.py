@@ -1,101 +1,136 @@
-# logic.py
-from db import (
-    create_user, get_all_users, update_user, delete_user,
-    create_product, get_all_products, update_product, delete_product
+from src.db import (
+    db_add_user, db_get_users, db_update_user, db_delete_user,
+    db_add_product, db_get_products, db_update_product, db_delete_product,
+    db_add_price_history, db_get_price_history, db_get_products_by_name
 )
 from datetime import datetime
-import requests
-from bs4 import BeautifulSoup
+import random
 
-
-# -------------------------------------------------------------------------
-#                              User Manager
-# --------------------------------------------------------------------------
-
+# ---------------- USERS ---------------- #
 class UserManager:
-    # ---- CREATE ----
-    def add_user(self, first_name, last_name, email, mobile_no, password_hash):
-        if not all([first_name, last_name, email, mobile_no, password_hash]):
-            return {"Success": False, "Message": "All fields are required."}
-        result = create_user(first_name, last_name, email, mobile_no, password_hash)
-        if result.data:
-            return {"Success": True, "Message": "User added successfully!"}
-        return {"Success": False, "Message": f"Error: {result.error}"}
-
-    # ---- READ ----
-    def get_users(self):
-        return get_all_users()
-
-    # ---- UPDATE ----
-    def update_user(self, uid, updated_fields: dict):
-        if not updated_fields:
-            return {"Success": False, "Message": "No fields provided for update."}
-        result = update_user(uid, updated_fields)
-        if result.data:
-            return {"Success": True, "Message": "User updated successfully!"}
-        return {"Success": False, "Message": f"Error: {result.error}"}
-
-    # ---- DELETE ----
-    def delete_user(self, uid):
-        result = delete_user(uid)
-        if result.data:
-            return {"Success": True, "Message": "User deleted successfully!"}
-        return {"Success": False, "Message": f"Error: {result.error}"}
-
-
-# -------------------------------------------------------------------------
-#                                     Product price
-# --------------------------------------------------------------------------
-
-class ProductManager:
-    # ---- HELPER: Fetch product info from URL ----
-    def fetch_product_details(self, url):
+    @staticmethod
+    def add_user(first_name, last_name, email, mobile_no, password_hash):
         try:
-            response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            soup = BeautifulSoup(response.text, "html.parser")
-            
-            # Example: Extract name, category, last_price from HTML
-            # You may need to customize selectors based on the website
-            name = soup.find("span", {"id": "productTitle"}).get_text(strip=True) if soup.find("span", {"id": "productTitle"}) else "Unknown"
-            category = soup.find("a", {"class": "a-link-normal a-color-tertiary"}).get_text(strip=True) if soup.find("a", {"class": "a-link-normal a-color-tertiary"}) else "General"
-            price_tag = soup.find("span", {"id": "priceblock_ourprice"}) or soup.find("span", {"id": "priceblock_dealprice"})
-            last_price = float(price_tag.get_text(strip=True).replace("₹","").replace(",","")) if price_tag else None
-
-            return name, category, last_price
+            data = {
+                "first_name": first_name,
+                "last_name": last_name,
+                "email": email,
+                "mobile_no": mobile_no,
+                "password_hash": password_hash   # ✅ fixed here
+            }
+            res = db_add_user(data)
+            if res and hasattr(res, "data") and res.data:
+                return {"Success": True, "Message": "User created", "data": res.data[0]}
+            return {"Success": False, "Message": "Failed to create user"}
         except Exception as e:
-            return "Unknown", "General", None
+            return {"Success": False, "Message": str(e)}
 
-    # ---- CREATE ----
-    def add_product(self, user_id, url, desired_price):
-        if not url or desired_price is None:
-            return {"Success": False, "Message": "URL and Desired Price are required."}
+    @staticmethod
+    def get_users():
+        # db_get_users already returns a list
+        return db_get_users()
 
-        # Automatically fetch product details
-        name, category, last_price = self.fetch_product_details(url)
+    @staticmethod
+    def update_user(uid, updates):
+        res = db_update_user(uid, updates)
+        return res.data if hasattr(res, "data") else res
 
-        result = create_product(user_id, url, name, category, last_price, desired_price)
-        if result.data:
-            return {"Success": True, "Message": "Product added successfully!"}
-        return {"Success": False, "Message": f"Error: {result.error}"}
+    @staticmethod
+    def delete_user(uid):
+        res = db_delete_user(uid)
+        return res.data if hasattr(res, "data") else res
 
-    # ---- READ ----
-    def get_products(self):
-        return get_all_products()
+# ---------------- PRODUCTS ---------------- #
+class ProductManager:
+    @staticmethod
+    def add_product(user_id, url, name=None, category=None, desired_price=None):
+        try:
+            data = {
+                "user_id": user_id,
+                "url": url,
+                "name": name,
+                "category": category,
+                "desired_price": desired_price,
+                "last_price": None,
+                "last_checked": datetime.utcnow().isoformat()
+            }
+            res = db_add_product(data)
+            if res and hasattr(res, "data") and res.data:
+                return {"Success": True, "Message": "Product added", "data": res.data[0]}
+            return {"Success": False, "Message": "Failed to add product"}
+        except Exception as e:
+            return {"Success": False, "Message": str(e)}
 
-    # ---- UPDATE ----
-    def update_product(self, pid, updated_fields: dict):
-        if not updated_fields:
-            return {"Success": False, "Message": "No fields provided for update."}
-        updated_fields["last_checked"] = datetime.now()
-        result = update_product(pid, updated_fields)
-        if result.data:
-            return {"Success": True, "Message": "Product updated successfully!"}
-        return {"Success": False, "Message": f"Error: {result.error}"}
+    @staticmethod
+    def get_products(user_id=None):
+        res = db_get_products(user_id)
+        return res.data if hasattr(res, "data") else res
 
-    # ---- DELETE ----
-    def delete_product(self, pid):
-        result = delete_product(pid)
-        if result.data:
-            return {"Success": True, "Message": "Product deleted successfully!"}
-        return {"Success": False, "Message": f"Error: {result.error}"}
+    @staticmethod
+    def get_products_by_name(name):
+        res = db_get_products_by_name(name)
+        return res.data if hasattr(res, "data") else res
 
+    @staticmethod
+    def update_product(pid, updates):
+        updates["last_checked"] = datetime.utcnow().isoformat()
+        res = db_update_product(pid, updates)
+        return res.data if hasattr(res, "data") else res
+
+    @staticmethod
+    def delete_product(pid):
+        res = db_delete_product(pid)
+        return res.data if hasattr(res, "data") else res
+
+# ---------------- PRICE TRACKING ---------------- #
+def fetch_real_time_price(url):
+    """Simulate fetching price from a site"""
+    # In real scenario, integrate API here
+    return round(random.uniform(100, 1000), 2), random.choice(["Amazon", "Flipkart", "Snapdeal"])
+
+def check_and_update_all_products():
+    products = db_get_products()
+    results = []
+    for p in products.data:
+        last_price, site = fetch_real_time_price(p["url"])
+        last_checked = datetime.utcnow().isoformat()
+        # Update product
+        ProductManager.update_product(p["pid"], {"last_price": last_price})
+        # Save history (only columns that exist in DB)
+        db_add_price_history({
+            "product_id": p["pid"],
+            "price": last_price,
+            "checked_at": last_checked
+        })
+        # Keep site in results for frontend display
+        results.append({
+            "pid": p["pid"],
+            "name": p["name"],
+            "lowest_price": last_price,
+            "site": site,
+            "url": p["url"],
+            "last_checked": last_checked
+        })
+    return results
+
+def track_product_by_name(name):
+    products = ProductManager.get_products_by_name(name)
+    results = []
+    for p in products:
+        last_price, site = fetch_real_time_price(p["url"])
+        last_checked = datetime.utcnow().isoformat()
+        ProductManager.update_product(p["pid"], {"last_price": last_price})
+        db_add_price_history({
+            "product_id": p["pid"],
+            "price": last_price,
+            "checked_at": last_checked
+        })
+        results.append({
+            "pid": p["pid"],
+            "name": p["name"],
+            "lowest_price": last_price,
+            "site": site,
+            "url": p["url"],
+            "last_checked": last_checked
+        })
+    return results
