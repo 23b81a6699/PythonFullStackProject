@@ -5,6 +5,9 @@ from src.db import (
 )
 from datetime import datetime
 import random
+import logging
+
+logger = logging.getLogger(__name__)
 
 # ---------------- USERS ---------------- #
 class UserManager:
@@ -16,7 +19,7 @@ class UserManager:
                 "last_name": last_name,
                 "email": email,
                 "mobile_no": mobile_no,
-                "password_hash": password_hash   # ✅ fixed here
+                "password_hash": password_hash
             }
             res = db_add_user(data)
             if res and hasattr(res, "data") and res.data:
@@ -27,7 +30,6 @@ class UserManager:
 
     @staticmethod
     def get_users():
-        # db_get_users already returns a list
         return db_get_users()
 
     @staticmethod
@@ -39,6 +41,7 @@ class UserManager:
     def delete_user(uid):
         res = db_delete_user(uid)
         return res.data if hasattr(res, "data") else res
+
 
 # ---------------- PRODUCTS ---------------- #
 class ProductManager:
@@ -63,6 +66,7 @@ class ProductManager:
 
     @staticmethod
     def get_products(user_id=None):
+        # returns list directly from DB
         res = db_get_products(user_id)
         return res.data if hasattr(res, "data") else res
 
@@ -82,36 +86,68 @@ class ProductManager:
         res = db_delete_product(pid)
         return res.data if hasattr(res, "data") else res
 
+
 # ---------------- PRICE TRACKING ---------------- #
 def fetch_real_time_price(url):
     """Simulate fetching price from a site"""
-    # In real scenario, integrate API here
     return round(random.uniform(100, 1000), 2), random.choice(["Amazon", "Flipkart", "Snapdeal"])
 
-def check_and_update_all_products():
-    products = db_get_products()
-    results = []
-    for p in products.data:
-        last_price, site = fetch_real_time_price(p["url"])
-        last_checked = datetime.utcnow().isoformat()
-        # Update product
-        ProductManager.update_product(p["pid"], {"last_price": last_price})
-        # Save history (only columns that exist in DB)
-        db_add_price_history({
-            "product_id": p["pid"],
-            "price": last_price,
-            "checked_at": last_checked
-        })
-        # Keep site in results for frontend display
-        results.append({
-            "pid": p["pid"],
-            "name": p["name"],
-            "lowest_price": last_price,
-            "site": site,
-            "url": p["url"],
-            "last_checked": last_checked
-        })
-    return results
+
+def check_and_update_all_products(notify_callback=None):
+    """
+    Loop through all products, fetch current price, update last_price & last_checked,
+    return (alerts, all_products_with_latest_price)
+    """
+    alerts = []
+    all_products = []
+    product_manager = ProductManager()
+    products = product_manager.get_products()  # list of product dicts
+
+    if not products:
+        logger.warning("No products found in DB.")
+        return alerts, all_products
+
+    for product in products:
+        try:
+            last_price, site = fetch_real_time_price(product["url"])
+            prev_price = product.get("last_price")
+
+            updates = {
+                "last_price": last_price,
+                "last_checked": datetime.utcnow().isoformat()
+            }
+            product_manager.update_product(product["pid"], updates)
+
+            # Save history
+            db_add_price_history({
+                "product_id": product["pid"],
+                "price": last_price,
+                "checked_at": datetime.utcnow().isoformat()
+            })
+
+            product_info = {
+                "uid": product.get("user_id"),  # ✅ include user id
+                "pid": product["pid"],
+                "name": product.get("name") or product["url"],
+                "url": product["url"],
+                "site": site,
+                "lowest_price": last_price,
+                "previous_price": prev_price,
+                "desired_price": product["desired_price"],
+                "last_checked": datetime.utcnow().isoformat()
+            }
+            all_products.append(product_info)
+
+            if product["desired_price"] and last_price <= product["desired_price"]:
+                alerts.append(product_info)
+                if notify_callback:
+                    notify_callback(product_info)
+
+        except Exception as e:
+            logger.error(f"Error checking product {product['pid']}: {e}")
+
+    return alerts, all_products
+
 
 def track_product_by_name(name):
     products = ProductManager.get_products_by_name(name)
@@ -126,6 +162,7 @@ def track_product_by_name(name):
             "checked_at": last_checked
         })
         results.append({
+            "uid": p.get("user_id"),  # ✅ include user id
             "pid": p["pid"],
             "name": p["name"],
             "lowest_price": last_price,

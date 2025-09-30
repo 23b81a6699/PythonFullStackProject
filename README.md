@@ -1,7 +1,7 @@
 # E-commerce Product Price Tracker
 
 ## Overview
-E-commerce Product Price Tracker is an application that tracks product prices of leading e-commerce sites such as Amazon and Flipkart. It allows users to register, add products by entering their URLs, and set a target price. The application scrapes the product pages at regular time intervals automatically, stores price history in a history table, and updates the current price in the database. If a price reduction is identified below the desired price of the user, the system is capable of informing the user (via email or dashboard alert). This enables users to save money when purchasing products at the optimal price and offers a full price history for review.
+The E-commerce Product Price Tracker is a backend application. It allows users to register, add products with URLs, and set a target price. The app stores product details, updates prices regularly, and maintains a complete price history. A scheduler automatically checks prices using a simulated generator that mimics real fluctuations. If a product’s price drops below the target, the system logs an internal alert. Although it does not currently scrape real e-commerce sites, the main workflow for tracking, updating, and alerting is fully functional and prepared for future improvements.
 
 
 ## Features

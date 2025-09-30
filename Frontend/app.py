@@ -115,15 +115,24 @@ elif choice == "Track Products":
         res = requests.post(f"{API_URL}/track/")
         if res.status_code == 200:
             tracked = res.json()
-            for p in tracked:
-                with st.expander(f"{p['name']}"):
-                    st.write(f"PID : {p.get('pid','N/A')}")
-                    st.write(f"**Last Price:** {p['lowest_price']} at {p['site']}")
-                    st.write(f"URL: {p['url']}")
-                    st.write(f"Last Checked: {p['last_checked']}")
-            st.success("🎊✨📈 Tracking completed! 📈✨🎊")
+            products = tracked.get("Products", [])
+
+            if products:
+                for p in products:
+                    with st.expander(f"{p.get('name','N/A')} (PID: {p.get('pid','N/A')})"):
+                        st.write(f"**Last Price:** {p['lowest_price']}")
+                        if p.get("previous_price"):
+                            st.write(f"**Previous Price:** {p['previous_price']}")
+                        st.write(f"**Desired Price:** {p['desired_price']}")
+                        st.write(f"**URL:** {p['url']}")
+                        st.write(f"**Last Checked:** {p['last_checked']}")
+                st.success("🎊✨📈 Tracking completed! 📈✨🎊")
+            else:
+                st.warning("No products found in database.")
         else:
             st.error(f"Failed: {res.text}")
+
+
 
 # ---------------- TRACK PRODUCT BY NAME ---------------- #
 elif choice == "Track Product by Name":
@@ -135,13 +144,13 @@ elif choice == "Track Product by Name":
         else:
             res = requests.get(f"{API_URL}/track/", params={"name": product_name})
             if res.status_code == 200:
-                data = res.json()["Products"]
+                data = res.json().get("Products", [])
                 for p in data:
-                    with st.expander(f"{p['name']}"):
+                    with st.expander(f"{p.get('name','N/A')}"):
                         st.write(f"PID: {p.get('pid','N/A')}")
-                        st.write(f"**Last Price:** {p['lowest_price']} at {p['site']}")
-                        st.write(f"URL: {p['url']}")
-                        st.write(f"Last Checked: {p['last_checked']}")
+                        st.write(f"**Last Price:** {p.get('lowest_price','N/A')} at {p.get('site','N/A')}")
+                        st.write(f"URL: {p.get('url','N/A')}")
+                        st.write(f"Last Checked: {p.get('last_checked','N/A')}")
                 st.success("✨🔍 Product tracking completed! ✨")
             else:
                 st.error(f"Failed: {res.text}")
